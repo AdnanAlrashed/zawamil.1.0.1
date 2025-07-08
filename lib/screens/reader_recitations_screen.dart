@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
-import '../models/artist.dart';
+import '../models/reader.dart';
 import 'music_player_screen.dart';
 import '../theme/app_colors.dart';
 import 'package:share_plus/share_plus.dart';
 
-class ArtistSongsScreen extends StatelessWidget {
-  final Artist artist;
-  final List<Song> songs;
+class ReaderRecitationsScreen extends StatelessWidget {
+  final Reader reader;
+  final List<Recitation> recitations;
 
-  const ArtistSongsScreen({required this.artist, required this.songs});
+  const ReaderRecitationsScreen({
+    required this.reader,
+    required this.recitations,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(artist.name),
+        title: Text(reader.name),
         actions: [
           IconButton(
             icon: Icon(Icons.share),
@@ -22,7 +25,7 @@ class ArtistSongsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: songs.isEmpty
+      body: recitations.isEmpty
           ? Center(
               child: Column(
                 children: [
@@ -32,14 +35,14 @@ class ArtistSongsScreen extends StatelessWidget {
                     color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
                   Text(
-                    'لا يوجد زوامل متاحة حالياً',
+                    'لا توجد سور متاحة حالياً',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ],
               ),
             )
           : ListView.builder(
-              itemCount: songs.length,
+              itemCount: recitations.length,
               itemBuilder: (ctx, index) => Card(
                 color: AppColors.getCardColor(context),
                 elevation: 1,
@@ -49,26 +52,27 @@ class ArtistSongsScreen extends StatelessWidget {
                 margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
+
                   onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => MusicPlayerScreen(
                           audioItem: AudioItem(
-                            id: songs[index].id,
-                            title: songs[index].title,
-                            audioUrl: songs[index].audioUrl,
-                            imageUrl: artist.imageUrl,
-                            artistName: artist.name,
+                            id: recitations[index].id,
+                            title: recitations[index].title,
+                            audioUrl: recitations[index].audioUrl,
+                            imageUrl: reader.imageUrl,
+                            artistName: reader.name,
                           ),
-                          playlist: songs
+                          playlist: recitations
                               .map(
-                                (song) => AudioItem(
-                                  id: song.id,
-                                  title: song.title,
-                                  audioUrl: song.audioUrl,
-                                  imageUrl: artist.imageUrl,
-                                  artistName: artist.name,
+                                (recitation) => AudioItem(
+                                  id: recitation.id,
+                                  title: recitation.title,
+                                  audioUrl: recitation.audioUrl,
+                                  imageUrl: reader.imageUrl,
+                                  artistName: reader.name,
                                 ),
                               )
                               .toList(),
@@ -82,7 +86,7 @@ class ArtistSongsScreen extends StatelessWidget {
                       vertical: 12,
                     ),
                     leading: Hero(
-                      tag: 'song_${songs[index].id}_${artist.id}',
+                      tag: 'recitation_${recitations[index].id}_${reader.id}',
                       child: Container(
                         padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -99,7 +103,7 @@ class ArtistSongsScreen extends StatelessWidget {
                       ),
                     ),
                     title: Text(
-                      songs[index].title,
+                      recitations[index].title,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: AppColors.getTextColor(context),
                         fontWeight: FontWeight.w500,
@@ -118,8 +122,8 @@ class ArtistSongsScreen extends StatelessWidget {
 
   void _shareArtist(BuildContext context) {
     final text =
-        'استمع إلى ${artist.name} على تطبيق Zwamil\n'
-        'عدد الزوامل: ${artist.songs.length}';
+        'استمع إلى ${reader.name} على تطبيق Zwamil\n'
+        'عدد الزوامل: ${reader.recitations.length}';
     Share.share(text);
   }
 }

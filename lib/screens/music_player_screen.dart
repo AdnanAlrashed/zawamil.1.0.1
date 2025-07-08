@@ -1,13 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
-import '../models/artist.dart';
+
+// نموذج مشترك لكلا النوعين (أغاني وتلاوات)
+class AudioItem {
+  final String id;
+  final String title;
+  final String audioUrl;
+  final String? imageUrl;
+  final String artistName;
+
+  AudioItem({
+    required this.id,
+    required this.title,
+    required this.audioUrl,
+    this.imageUrl,
+    required this.artistName,
+  });
+}
 
 class MusicPlayerScreen extends StatefulWidget {
-  final Song song;
-  final Artist artist;
+  final AudioItem audioItem;
+  final List<AudioItem>? playlist; // قائمة تشغيل اختيارية
 
-  const MusicPlayerScreen({required this.song, required this.artist});
+  const MusicPlayerScreen({required this.audioItem, this.playlist});
 
   @override
   _MusicPlayerScreenState createState() => _MusicPlayerScreenState();
@@ -20,24 +36,76 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   bool _isLooping = false;
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
+  int _currentIndex = 0;
+  List<AudioItem> _playlist = [];
+  bool _initError = false;
+  String? _initErrorMessage;
 
   final List<StreamSubscription> _subscriptions = [];
 
   @override
   void initState() {
     super.initState();
-    _initAudio();
-    _setupAudioPlayer();
+    _playlist = widget.playlist ?? [widget.audioItem];
+    _currentIndex = _findCurrentIndex();
+    if (_playlist.isNotEmpty) {
+      _initAudio();
+      _setupAudioPlayer();
+    } else {
+      _showErrorSnackbar('لا توجد عناصر صوتية متاحة');
+    }
+  }
+
+  int _findCurrentIndex() {
+    final index = _playlist.indexOf(widget.audioItem);
+    return index >= 0 ? index : 0; // العودة إلى 0 إذا لم يتم العثور على العنصر
+  }
+
+  Future<void> _playItem(int index) async {
+    if (index < 0 || index >= _playlist.length) {
+      _showErrorSnackbar('عنصر غير صالح');
+      return;
+    }
+
+    try {
+      setState(() {
+        _currentIndex = index;
+        _isBuffering = true;
+        _position = Duration.zero;
+      });
+
+      await _audioPlayer.stop();
+      await _audioPlayer.setSource(AssetSource(_playlist[index].audioUrl));
+      await _audioPlayer.play(AssetSource(_playlist[index].audioUrl));
+    } catch (e) {
+      debugPrint('Play item error: $e');
+      _showErrorSnackbar('حدث خطأ أثناء تشغيل العنصر');
+      if (mounted) {
+        setState(() => _isBuffering = false);
+      }
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initError && mounted) {
+      _showErrorSnackbar(_initErrorMessage ?? 'حدث خطأ في بدء التشغيل');
+      _initError = false;
+    }
   }
 
   Future<void> _initAudio() async {
     try {
       setState(() => _isBuffering = true);
-      await _audioPlayer.setSource(AssetSource(widget.song.audioUrl));
+      await _audioPlayer.setSource(
+        AssetSource(_playlist[_currentIndex].audioUrl),
+      );
       await _audioPlayer.setVolume(1.0);
     } catch (e) {
       debugPrint('Audio initialization error: $e');
-      _showErrorSnackbar('حدث خطأ في بدء التشغيل: ${e.toString()}');
+      _initError = true;
+      _initErrorMessage = 'حدث خطأ في بدء التشغيل: ${e.toString()}';
     } finally {
       if (mounted) {
         setState(() => _isBuffering = false);
@@ -68,13 +136,38 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     ]);
   }
 
+  // Future<void> _playItem(int index) async {
+  //   if (index < 0 || index >= _playlist.length) return;
+
+  //   try {
+  //     setState(() {
+  //       _currentIndex = index;
+  //       _isBuffering = true;
+  //       _position = Duration.zero;
+  //     });
+
+  //     await _audioPlayer.stop();
+  //     await _audioPlayer.setSource(AssetSource(_playlist[index].audioUrl));
+  //     await _audioPlayer.play(AssetSource(_playlist[index].audioUrl));
+  //   } catch (e) {
+  //     debugPrint('Play item error: $e');
+  //     _showErrorSnackbar('حدث خطأ أثناء تشغيل العنصر');
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() => _isBuffering = false);
+  //     }
+  //   }
+  // }
+
   Future<void> _togglePlay() async {
     try {
       if (_isPlaying) {
         await _audioPlayer.pause();
       } else {
         if (_position.inMilliseconds == 0 || _position == _duration) {
-          await _audioPlayer.play(AssetSource(widget.song.audioUrl));
+          await _audioPlayer.play(
+            AssetSource(_playlist[_currentIndex].audioUrl),
+          );
         } else {
           await _audioPlayer.resume();
         }
@@ -125,6 +218,22 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     }
   }
 
+  Future<void> _playNext() async {
+    if (_currentIndex < _playlist.length - 1) {
+      await _playItem(_currentIndex + 1);
+    } else {
+      await _playItem(0); // العودة إلى أول عنصر في القائمة
+    }
+  }
+
+  Future<void> _playPrevious() async {
+    if (_currentIndex > 0) {
+      await _playItem(_currentIndex - 1);
+    } else {
+      await _playItem(_playlist.length - 1); // الانتقال إلى آخر عنصر في القائمة
+    }
+  }
+
   void _handleSongCompletion() {
     if (!mounted) return;
     setState(() {
@@ -134,18 +243,23 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     if (_isLooping) {
       _audioPlayer.seek(Duration.zero);
       _audioPlayer.resume();
+    } else if (_playlist.length > 1) {
+      _playNext(); // تشغيل العنصر التالي تلقائياً إذا كانت هناك قائمة تشغيل
     }
   }
 
   void _showErrorSnackbar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    });
   }
 
   @override
@@ -167,11 +281,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final currentItem = _playlist[_currentIndex];
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('تشغيل الزامل'),
+        title: Text('المشغل'),
         actions: [
           IconButton(
             icon: Icon(_isLooping ? Icons.repeat_one : Icons.repeat),
@@ -198,16 +313,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Hero(
-                tag: 'song_${widget.song.id}_${widget.artist.id}',
+                tag: 'audio_item_${currentItem.id}',
                 child: CircleAvatar(
                   radius: 120,
-                  backgroundImage: widget.artist.imageUrl.isNotEmpty
-                      ? AssetImage(widget.artist.imageUrl) as ImageProvider
+                  backgroundImage:
+                      currentItem.imageUrl != null &&
+                          currentItem.imageUrl!.isNotEmpty
+                      ? AssetImage(currentItem.imageUrl!) as ImageProvider
                       : null,
                   backgroundColor: Theme.of(
                     context,
                   ).primaryColor.withOpacity(0.1),
-                  child: widget.artist.imageUrl.isEmpty
+                  child:
+                      currentItem.imageUrl == null ||
+                          currentItem.imageUrl!.isEmpty
                       ? Icon(
                           Icons.music_note,
                           size: 60,
@@ -218,14 +337,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               ),
               SizedBox(height: 24),
               Text(
-                widget.song.title,
+                currentItem.title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,
               ),
               Text(
-                widget.artist.name,
+                currentItem.artistName,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               SizedBox(height: 32),
@@ -352,12 +471,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   SizedBox(width: 24),
                   IconButton(
                     icon: Icon(Icons.skip_previous, size: 32),
-                    onPressed: () {},
+                    onPressed: _playPrevious,
                   ),
                   SizedBox(width: 24),
                   IconButton(
                     icon: Icon(Icons.skip_next, size: 32),
-                    onPressed: () {},
+                    onPressed: _playNext,
                   ),
                 ],
               ),

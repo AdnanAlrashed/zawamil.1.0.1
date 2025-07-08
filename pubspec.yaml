@@ -42,7 +42,7 @@ dependencies:
   # يمكنك استخدام مكتبة أخرى لتشغيل الصوت مثل just_audio
   # just_audio: ^0.9.18  # إذا كنت تريد استخدام مكتبة أكثر استقراراً
   # إذا كنت تواجه مشاكل مع audioplayers، يمكنك استخدام just_audio بدلاً منها
-  just_audio: ^0.10.4  # بديل أكثر استقراراً
+  # just_audio: ^0.10.4  # بديل أكثر استقراراً
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -79,6 +79,7 @@ flutter:
     - assets/images/
     - assets/audio/hussan_altyr/
     - assets/audio/essa_alyth/
+    - assets/audio/alminshawi/
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
