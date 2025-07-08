@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'dart:async';
-import 'dart:convert';
 import '../models/artist.dart';
-import '../theme/app_colors.dart';
 
 class MusicPlayerScreen extends StatefulWidget {
   final Song song;
@@ -24,67 +21,32 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Duration _duration = Duration.zero;
   Duration _position = Duration.zero;
 
-  final List<StreamSubscription> _subscriptions = []; // إدارة جميع الاشتراكات
+  final List<StreamSubscription> _subscriptions = [];
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(Duration.zero, () {
-      _setupAudioPlayer();
-      _initAudio();
-    });
-  }
-
-  Future<bool> _checkPermissions() async {
-    if (await Permission.storage.request().isGranted) {
-      return true;
-    }
-    return false;
-  }
-
-  Future<bool> _validateAudioFile() async {
-    try {
-      final manifest = await DefaultAssetBundle.of(
-        context,
-      ).loadString('AssetManifest.json');
-      final Map<String, dynamic> manifestMap = json.decode(manifest);
-      return manifestMap.containsKey(widget.song.audioUrl);
-    } catch (e) {
-      debugPrint('Error validating audio file: $e');
-      return false;
-    }
+    _initAudio();
+    _setupAudioPlayer();
   }
 
   Future<void> _initAudio() async {
     try {
-      final hasPermission = await _checkPermissions();
-      if (!hasPermission) {
-        if (mounted) {
-          _showErrorSnackbar('يحتاج التطبيق إلى صلاحيات التخزين');
-        }
-        return;
-      }
-
-      final isValid = await _validateAudioFile();
-      if (!isValid) {
-        if (mounted) {
-          _showErrorSnackbar('الملف الصوتي غير موجود');
-        }
-        return;
-      }
-
+      setState(() => _isBuffering = true);
       await _audioPlayer.setSource(AssetSource(widget.song.audioUrl));
       await _audioPlayer.setVolume(1.0);
     } catch (e) {
-      debugPrint('Audio Error: ${e.toString()}');
+      debugPrint('Audio initialization error: $e');
+      _showErrorSnackbar('حدث خطأ في بدء التشغيل: ${e.toString()}');
+    } finally {
       if (mounted) {
-        _showErrorSnackbar('حدث خطأ في التشغيل، جرب لاحقاً');
+        setState(() => _isBuffering = false);
       }
     }
   }
 
   void _setupAudioPlayer() {
-    _subscriptions.add(
+    _subscriptions.addAll([
       _audioPlayer.onPlayerStateChanged.listen((state) {
         if (!mounted) return;
         setState(() {
@@ -92,27 +54,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
           _isBuffering = state == PlayerState.playing ? false : _isBuffering;
         });
       }),
-    );
-
-    _subscriptions.add(
       _audioPlayer.onDurationChanged.listen((duration) {
         if (!mounted) return;
         setState(() => _duration = duration);
       }),
-    );
-
-    _subscriptions.add(
       _audioPlayer.onPositionChanged.listen((position) {
         if (!mounted) return;
         setState(() => _position = position);
       }),
-    );
-
-    _subscriptions.add(
       _audioPlayer.onPlayerComplete.listen((_) {
         _handleSongCompletion();
       }),
-    );
+    ]);
   }
 
   Future<void> _togglePlay() async {
@@ -127,7 +80,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error toggling play: $e');
+      debugPrint('Play/pause error: $e');
       _showErrorSnackbar('حدث خطأ أثناء التشغيل');
     }
   }
@@ -137,11 +90,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       await _audioPlayer.setReleaseMode(
         _isLooping ? ReleaseMode.release : ReleaseMode.loop,
       );
-      setState(() {
-        _isLooping = !_isLooping;
-      });
+      setState(() => _isLooping = !_isLooping);
     } catch (e) {
-      debugPrint('Error toggling loop: $e');
+      debugPrint('Loop toggle error: $e');
       _showErrorSnackbar('حدث خطأ في تكرار التشغيل');
     }
   }
@@ -155,7 +106,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         await _audioPlayer.seek(_duration);
       }
     } catch (e) {
-      debugPrint('Error skipping forward: $e');
+      debugPrint('Skip forward error: $e');
       _showErrorSnackbar('حدث خطأ في التخطي للأمام');
     }
   }
@@ -169,7 +120,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         await _audioPlayer.seek(Duration.zero);
       }
     } catch (e) {
-      debugPrint('Error skipping backward: $e');
+      debugPrint('Skip backward error: $e');
       _showErrorSnackbar('حدث خطأ في التخطي للخلف');
     }
   }
@@ -189,28 +140,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   void _showErrorSnackbar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
   @override
   void dispose() {
-    // إلغاء جميع الاشتراكات
     for (var subscription in _subscriptions) {
       subscription.cancel();
     }
-
-    // إيقاف التشغيل وتحرير الموارد
-    _audioPlayer
-        .stop()
-        .then((_) {
-          _audioPlayer.dispose();
-        })
-        .catchError((e) {
-          debugPrint('Error disposing player: $e');
-          _audioPlayer.dispose();
-        });
-
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -274,20 +217,18 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ),
               ),
               SizedBox(height: 24),
-
               Text(
                 widget.song.title,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               Text(
                 widget.artist.name,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
               SizedBox(height: 32),
-
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -349,7 +290,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       ],
                     ),
                   ),
-
                   StreamBuilder<Duration>(
                     stream: _audioPlayer.onPositionChanged,
                     builder: (context, snapshot) {
@@ -373,7 +313,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ],
               ),
               SizedBox(height: 24),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -400,7 +339,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 ],
               ),
               SizedBox(height: 16),
-
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -423,7 +361,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ),
                 ],
               ),
-
               if (_isBuffering)
                 Padding(
                   padding: EdgeInsets.only(top: 16),
