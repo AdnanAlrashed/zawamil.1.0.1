@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/theme_notifier.dart';
 import 'screens/home_screen.dart';
+import 'screens/admin_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {

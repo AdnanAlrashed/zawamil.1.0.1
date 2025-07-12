@@ -4,6 +4,7 @@ import '../providers/theme_notifier.dart';
 import '../theme/app_colors.dart';
 import 'artists_screen.dart';
 import 'reads_screen.dart';
+import 'admin_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   final List<Map<String, dynamic>> categories = [
@@ -64,6 +65,15 @@ class HomeScreen extends StatelessWidget {
               Provider.of<ThemeNotifier>(context, listen: false).toggleTheme();
             },
           ),
+          IconButton(
+            icon: Icon(Icons.admin_panel_settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AdminScreen()),
+              );
+            },
+          ),
         ],
       ),
       body: Padding(
@@ -90,9 +100,8 @@ class HomeScreen extends StatelessWidget {
     Map<String, dynamic> category,
   ) {
     final isDarkMode = Provider.of<ThemeNotifier>(context).isDarkMode;
-    final iconColor = isDarkMode
-        ? category['color'].withOpacity(0.8)
-        : category['color'];
+    final iconColor =
+        isDarkMode ? category['color'].withOpacity(0.8) : category['color'];
 
     return Card(
       elevation: 4,
@@ -109,16 +118,15 @@ class HomeScreen extends StatelessWidget {
               pageBuilder: (_, __, ___) => category['screen'],
               transitionsBuilder: (_, animation, __, child) {
                 return SlideTransition(
-                  position:
-                      Tween<Offset>(
-                        begin: Offset(0.0, 0.1),
-                        end: Offset.zero,
-                      ).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOut,
-                        ),
-                      ),
+                  position: Tween<Offset>(
+                    begin: Offset(0.0, 0.1),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOut,
+                    ),
+                  ),
                   child: child,
                 );
               },
@@ -148,10 +156,10 @@ class HomeScreen extends StatelessWidget {
               Text(
                 category['title'],
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.getTextColor(context),
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Tajawal',
-                ),
+                      color: AppColors.getTextColor(context),
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'Tajawal',
+                    ),
                 textAlign: TextAlign.center,
               ),
             ],

@@ -1,15 +1,33 @@
-import '../models/song.dart';
+import 'package:flutter/foundation.dart';
 
 class Artist {
-  final String id;
+  final int? id;
   final String name;
   final String imageUrl;
-  final List<Song> songs;
+  final int songCount;
 
   Artist({
-    required this.id,
+    this.id,
     required this.name,
     required this.imageUrl,
-    required this.songs,
+    this.songCount = 0,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'image_url': imageUrl,
+      'song_count': songCount,
+    };
+  }
+
+  factory Artist.fromMap(Map<String, dynamic> map) {
+    return Artist(
+      id: map['id'],
+      name: map['name'],
+      imageUrl: map['image_url'],
+      songCount: map['song_count'] ?? 0,
+    );
+  }
 }

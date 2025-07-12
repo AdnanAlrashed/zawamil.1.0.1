@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
+import 'dart:io';
 
 // نموذج مشترك لكلا النوعين (أغاني وتلاوات)
 class AudioItem {
@@ -75,8 +76,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       });
 
       await _audioPlayer.stop();
-      await _audioPlayer.setSource(AssetSource(_playlist[index].audioUrl));
-      await _audioPlayer.play(AssetSource(_playlist[index].audioUrl));
+      await _audioPlayer.setSource(DeviceFileSource(_playlist[index].audioUrl));
+      await _audioPlayer.play(DeviceFileSource(_playlist[index].audioUrl));
     } catch (e) {
       debugPrint('Play item error: $e');
       _showErrorSnackbar('حدث خطأ أثناء تشغيل العنصر');
@@ -99,7 +100,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     try {
       setState(() => _isBuffering = true);
       await _audioPlayer.setSource(
-        AssetSource(_playlist[_currentIndex].audioUrl),
+        DeviceFileSource(_playlist[_currentIndex].audioUrl),
       );
       await _audioPlayer.setVolume(1.0);
     } catch (e) {
@@ -143,7 +144,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       } else {
         if (_position.inMilliseconds == 0 || _position == _duration) {
           await _audioPlayer.play(
-            AssetSource(_playlist[_currentIndex].audioUrl),
+            DeviceFileSource(_playlist[_currentIndex].audioUrl),
           );
         } else {
           await _audioPlayer.resume();
@@ -293,16 +294,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 tag: 'audio_item_${currentItem.id}',
                 child: CircleAvatar(
                   radius: 120,
-                  backgroundImage:
-                      currentItem.imageUrl != null &&
+                  backgroundImage: currentItem.imageUrl != null &&
                           currentItem.imageUrl!.isNotEmpty
-                      ? AssetImage(currentItem.imageUrl!) as ImageProvider
+                      ? FileImage(File(currentItem.imageUrl!)) as ImageProvider
                       : null,
                   backgroundColor: Theme.of(
                     context,
                   ).primaryColor.withOpacity(0.1),
-                  child:
-                      currentItem.imageUrl == null ||
+                  child: currentItem.imageUrl == null ||
                           currentItem.imageUrl!.isEmpty
                       ? Icon(
                           Icons.music_note,
@@ -316,8 +315,8 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
               Text(
                 currentItem.title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                      fontWeight: FontWeight.bold,
+                    ),
                 textAlign: TextAlign.center,
               ),
               Text(
@@ -357,9 +356,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               min: 0,
                               max: _duration.inMilliseconds.toDouble(),
                               value: _position.inMilliseconds.toDouble().clamp(
-                                0,
-                                _duration.inMilliseconds.toDouble(),
-                              ),
+                                    0,
+                                    _duration.inMilliseconds.toDouble(),
+                                  ),
                               onChanged: (value) {
                                 setState(() {
                                   _position = Duration(
@@ -393,8 +392,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: LinearProgressIndicator(
-                          value:
-                              bufferedPosition.inMilliseconds /
+                          value: bufferedPosition.inMilliseconds /
                               _duration.inMilliseconds.clamp(
                                 1,
                                 double.maxFinite,

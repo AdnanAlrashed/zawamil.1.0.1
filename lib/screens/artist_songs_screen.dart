@@ -26,6 +26,7 @@ class ArtistSongsScreen extends StatelessWidget {
       body: songs.isEmpty
           ? Center(
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
                     Icons.music_off,
@@ -56,7 +57,7 @@ class ArtistSongsScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => MusicPlayerScreen(
                           audioItem: AudioItem(
-                            id: songs[index].id ?? '',
+                            id: (songs[index].id ?? '').toString(),
                             title: songs[index].title ?? '',
                             audioUrl: songs[index].audioUrl ?? '',
                             imageUrl: artist.imageUrl,
@@ -65,7 +66,7 @@ class ArtistSongsScreen extends StatelessWidget {
                           playlist: songs
                               .map(
                                 (song) => AudioItem(
-                                  id: song.id ?? '',
+                                  id: (song.id ?? '').toString(),
                                   title: song.title ?? '',
                                   audioUrl: song.audioUrl ?? '',
                                   imageUrl: artist.imageUrl,
@@ -102,9 +103,9 @@ class ArtistSongsScreen extends StatelessWidget {
                     title: Text(
                       songs[index].title,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.getTextColor(context),
-                        fontWeight: FontWeight.w500,
-                      ),
+                            color: AppColors.getTextColor(context),
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                     trailing: Icon(
                       Icons.play_arrow,
@@ -118,9 +119,8 @@ class ArtistSongsScreen extends StatelessWidget {
   }
 
   void _shareArtist(BuildContext context) {
-    final text =
-        'استمع إلى ${artist.name} على تطبيق Zwamil\n'
-        'عدد الزوامل: ${artist.songs.length}';
+    final text = 'استمع إلى ${artist.name} على تطبيق Zwamil\n'
+        'عدد الزوامل: ${artist.songCount}';
     Share.share(text);
   }
 }
