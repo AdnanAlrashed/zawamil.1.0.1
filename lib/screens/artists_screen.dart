@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_notifier.dart';
 import '../models/artist.dart';
+import '../models/song.dart'; // Added missing import
 import 'artist_songs_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/artist_avatar.dart';
@@ -16,17 +17,60 @@ class ArtistsScreen extends StatelessWidget {
         Song(
           id: '1',
           title: 'غايتنا رضاك - عيسى الليث 1446هـ',
-          audioUrl: 'audio/essa_alyth/ghayatuna_ridak.mp3',
+          audioUrl: 'assets/audio/essa_alyth/ghayatuna_ridak.mp3', // Fixed path
         ),
         Song(
           id: '2',
           title: 'هامات عملاقة - عيسى الليث وحسن المؤيد 1446هـ',
-          audioUrl: 'audio/essa_alyth/hamat_eimalaqih.mp3',
+          audioUrl: 'assets/audio/essa_alyth/hamat_eimalaqih.mp3', // Fixed path
         ),
         Song(
           id: '3',
           title: 'عيد الجهاد المقدس - عيسى الليث 1446هـ',
-          audioUrl: 'audio/essa_alyth/eid_aljihad_almuqadas.mp3',
+          audioUrl:
+              'assets/audio/essa_alyth/eid_aljihad_almuqadas.mp3', // Fixed path
+        ),
+        Song(
+          id: '4',
+          title: 'عيدالولايه - عيسى الليث 1446هـ',
+          audioUrl: 'assets/audio/essa_alyth/ead_alwlayh.mp3', // Fixed path
+        ),
+        Song(
+          id: '5',
+          title: 'السراج الوهاج - عيسى الليث 1446هـ',
+          audioUrl: 'assets/audio/essa_alyth/alsrag_alwhag.mp3', // Fixed path
+        ),
+        Song(
+          id: '6',
+          title: 'جند ربي - عيسى الليث 1446هـ',
+          audioUrl: 'assets/audio/essa_alyth/jnen_rabe.mp3', // Fixed path
+        ),
+        Song(
+          id: '7',
+          title: 'عيدمبارك - عيسى الليث 1446هـ',
+          audioUrl: 'assets/audio/essa_alyth/ead_mobark.mp3', // Fixed path
+        ),
+        Song(
+          id: '8',
+          title: 'فرط صوتي نسخه معدله - عيسى الليث 1446هـ',
+          audioUrl: 'assets/audio/essa_alyth/fart_soty.mp3', // Fixed path
+        ),
+        Song(
+          id: '9',
+          title: 'كسرناهيبة امريكا -قناف المقبلي&عيسى الليث 1446هـ',
+          audioUrl:
+              'assets/audio/essa_alyth/ksrna_hebat_amrica.mp3', // Fixed path
+        ),
+        Song(
+          id: '10',
+          title: 'كليب مع غزة-حسين الؤيد&عيسى الليث 1446هـ',
+          audioUrl: 'assets/audio/essa_alyth/kolap_mah_gazah.mp3', // Fixed path
+        ),
+        Song(
+          id: '11',
+          title: 'لن نترك فلسطين - عيسى الليث 1446هـ',
+          audioUrl:
+              'assets/audio/essa_alyth/lan_natrk_phlistain.mp3', // Fixed path
         ),
       ],
     ),
@@ -38,32 +82,18 @@ class ArtistsScreen extends StatelessWidget {
         Song(
           id: '1',
           title: 'الموريات اليمانيه - حسين الطير 1446هـ',
-          audioUrl: 'audio/hussan_altyr/almuriat_alyamanih.mp3',
+          audioUrl:
+              'assets/audio/hussan_altyr/almuriat_alyamanih.mp3', // Fixed path
         ),
         Song(
           id: '2',
           title: ' حسين الطير بلسم الروح 1446هـ',
-          audioUrl: 'audio/hussan_altyr/zamil_balsam_aljurh.mp3',
+          audioUrl:
+              'assets/audio/hussan_altyr/zamil_balsam_aljurh.mp3', // Fixed path
         ),
       ],
     ),
-    Artist(
-      id: '3',
-      name: 'حسن المؤيد',
-      imageUrl: 'assets/images/default_artist.png',
-      songs: [
-        Song(
-          id: '1',
-          title: 'يا زهراء - حسن المؤيد 1446هـ',
-          audioUrl: 'audio/hassan_moayed/ya_zahra.mp3',
-        ),
-        Song(
-          id: '2',
-          title: 'يا زهراء - حسن المؤيد 1446هـ',
-          audioUrl: 'audio/hassan_moayed/ya_zahra_2.mp3',
-        ),
-      ],
-    ),
+    // حسن المؤيد removed until audio files are added
     // يمكن إضافة المزيد من الفنانين هنا
   ];
 
@@ -74,10 +104,10 @@ class ArtistsScreen extends StatelessWidget {
         title: Text('الفنانين'),
         actions: [
           IconButton(
-            icon: Icon(
-              Provider.of<ThemeNotifier>(context).isDarkMode
-                  ? Icons.light_mode
-                  : Icons.dark_mode,
+            icon: Consumer<ThemeNotifier>(
+              builder: (context, themeNotifier, child) => Icon(
+                themeNotifier.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+              ),
             ),
             onPressed: () {
               Provider.of<ThemeNotifier>(context, listen: false).toggleTheme();
@@ -121,20 +151,18 @@ class ArtistsScreen extends StatelessWidget {
                     child: ArtistAvatar(
                       imageUrl: artists[index].imageUrl,
                       radius: 28,
+                      errorWidget: Icon(Icons.person, size: 40),
                     ),
                   ),
                   title: Text(
                     artists[index].name,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.getTextColor(context),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   subtitle: Text(
                     'عدد الزوامل: ${artists[index].songs.length}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 ),
               ),

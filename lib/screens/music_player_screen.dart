@@ -136,29 +136,6 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     ]);
   }
 
-  // Future<void> _playItem(int index) async {
-  //   if (index < 0 || index >= _playlist.length) return;
-
-  //   try {
-  //     setState(() {
-  //       _currentIndex = index;
-  //       _isBuffering = true;
-  //       _position = Duration.zero;
-  //     });
-
-  //     await _audioPlayer.stop();
-  //     await _audioPlayer.setSource(AssetSource(_playlist[index].audioUrl));
-  //     await _audioPlayer.play(AssetSource(_playlist[index].audioUrl));
-  //   } catch (e) {
-  //     debugPrint('Play item error: $e');
-  //     _showErrorSnackbar('حدث خطأ أثناء تشغيل العنصر');
-  //   } finally {
-  //     if (mounted) {
-  //       setState(() => _isBuffering = false);
-  //     }
-  //   }
-  // }
-
   Future<void> _togglePlay() async {
     try {
       if (_isPlaying) {

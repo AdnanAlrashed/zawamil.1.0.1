@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/artist.dart';
+import '../models/song.dart'; // Added missing import
 import 'music_player_screen.dart';
 import '../theme/app_colors.dart';
 import 'package:share_plus/share_plus.dart';
@@ -55,18 +56,18 @@ class ArtistSongsScreen extends StatelessWidget {
                       MaterialPageRoute(
                         builder: (context) => MusicPlayerScreen(
                           audioItem: AudioItem(
-                            id: songs[index].id,
-                            title: songs[index].title,
-                            audioUrl: songs[index].audioUrl,
+                            id: songs[index].id ?? '',
+                            title: songs[index].title ?? '',
+                            audioUrl: songs[index].audioUrl ?? '',
                             imageUrl: artist.imageUrl,
                             artistName: artist.name,
                           ),
                           playlist: songs
                               .map(
                                 (song) => AudioItem(
-                                  id: song.id,
-                                  title: song.title,
-                                  audioUrl: song.audioUrl,
+                                  id: song.id ?? '',
+                                  title: song.title ?? '',
+                                  audioUrl: song.audioUrl ?? '',
                                   imageUrl: artist.imageUrl,
                                   artistName: artist.name,
                                 ),
