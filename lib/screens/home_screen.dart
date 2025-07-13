@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_notifier.dart';
 import '../theme/app_colors.dart';
+import '../utils/admin_config.dart';
 import 'artists_screen.dart';
 import 'reads_screen.dart';
 import 'admin_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
+  @override
+  _HomeScreenState createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _tapCount = 0;
+  DateTime? _lastTapTime;
+
   final List<Map<String, dynamic>> categories = [
     {
       'title': 'الفنانين',
@@ -45,13 +54,61 @@ class HomeScreen extends StatelessWidget {
     },
   ];
 
+  void _handleTitleTap() {
+    final now = DateTime.now();
+    if (_lastTapTime == null ||
+        now.difference(_lastTapTime!).inMilliseconds >
+            AdminConfig.tapTimeWindow) {
+      _tapCount = 1;
+    } else {
+      _tapCount++;
+    }
+    _lastTapTime = now;
+
+    // الوصول لشاشة الإدارة بعد النقرات المطلوبة
+    if (_tapCount >= AdminConfig.requiredTaps) {
+      _tapCount = 0;
+      _showAdminAccessDialog();
+    }
+  }
+
+  void _showAdminAccessDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('الوصول للإدارة'),
+        content: Text('هل تريد الوصول لشاشة الإدارة؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AdminScreen()),
+              );
+            },
+            child: Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Zwamil',
-          style: TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold),
+        title: GestureDetector(
+          onTap: _handleTitleTap,
+          child: Text(
+            'Zwamil',
+            style:
+                TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold),
+          ),
         ),
         centerTitle: true,
         actions: [
@@ -63,15 +120,6 @@ class HomeScreen extends StatelessWidget {
             ),
             onPressed: () {
               Provider.of<ThemeNotifier>(context, listen: false).toggleTheme();
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.admin_panel_settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AdminScreen()),
-              );
             },
           ),
         ],

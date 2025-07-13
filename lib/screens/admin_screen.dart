@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
+import '../utils/admin_config.dart';
+import '../services/notification_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -19,6 +21,7 @@ class _AdminScreenState extends State<AdminScreen> {
   int? _selectedArtistId;
   int? _editingArtistId;
   int? _editingSongId;
+  bool _isAuthenticated = false;
 
   List<Map<String, dynamic>> artists = [];
   List<Map<String, dynamic>> songs = [];
@@ -26,8 +29,62 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void initState() {
     super.initState();
-    _loadArtists();
-    _loadSongs();
+    // تأخير فحص المصادقة حتى اكتمال تهيئة الـ widget
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthentication();
+    });
+  }
+
+  void _checkAuthentication() {
+    // استخدام كلمة المرور من ملف الإعدادات
+    const adminPassword = AdminConfig.adminPassword;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text('الوصول للإدارة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('أدخل كلمة المرور للوصول لشاشة الإدارة:'),
+            SizedBox(height: 16),
+            TextField(
+              obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'كلمة المرور',
+                border: OutlineInputBorder(),
+              ),
+              onSubmitted: (value) {
+                if (value == adminPassword) {
+                  Navigator.pop(context);
+                  setState(() {
+                    _isAuthenticated = true;
+                  });
+                  _loadArtists();
+                  _loadSongs();
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('كلمة مرور خاطئة')),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(context); // العودة للشاشة السابقة
+            },
+            child: Text('إلغاء'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _loadArtists() async {
@@ -50,8 +107,20 @@ class _AdminScreenState extends State<AdminScreen> {
       'name': _artistNameController.text,
       'image_url': _artistImageController.text,
     });
+
+    // إرسال إشعار للمستخدمين
+    await NotificationService.showNewArtistNotification(
+        _artistNameController.text);
+
     _clearArtistForm();
     _loadArtists();
+
+    // رسالة تأكيد للمدير
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم إضافة الفنان وإرسال الإشعار للمستخدمين')),
+      );
+    }
   }
 
   Future<void> _updateArtist() async {
@@ -110,13 +179,34 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _addSong() async {
     if (_songTitleController.text.isEmpty || _selectedArtistId == null) return;
+
+    // الحصول على اسم الفنان
+    final artist = artists.firstWhere(
+      (a) => a['id'] == _selectedArtistId,
+      orElse: () => {'name': 'غير معروف'},
+    );
+
     await DatabaseHelper.instance.createSong({
       'title': _songTitleController.text,
       'audio_url': _songAudioController.text,
       'artist_id': _selectedArtistId,
     });
+
+    // إرسال إشعار للمستخدمين
+    await NotificationService.showNewSongNotification(
+      _songTitleController.text,
+      artist['name'],
+    );
+
     _clearSongForm();
     _loadSongs();
+
+    // رسالة تأكيد للمدير
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم إضافة الزامل وإرسال الإشعار للمستخدمين')),
+      );
+    }
   }
 
   Future<void> _updateSong() async {
@@ -207,8 +297,29 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isAuthenticated) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('الوصول للإدارة'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text('لوحة الإدارة')),
+      appBar: AppBar(
+        title: Text('لوحة الإدارة'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
         child: Column(

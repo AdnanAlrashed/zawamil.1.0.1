@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/theme_notifier.dart';
+import 'services/notification_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/admin_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // تهيئة خدمة الإشعارات
+  await NotificationService.initialize();
+
   final prefs = await SharedPreferences.getInstance();
   final isDarkMode = prefs.getBool('isDarkMode') ?? true;
 
