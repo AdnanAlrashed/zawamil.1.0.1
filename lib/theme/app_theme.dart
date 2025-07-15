@@ -6,14 +6,13 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.light,
       primaryColor: AppColors.primary,
-      colorScheme: ColorScheme.light(
+      colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
         surface: Colors.white,
-        background: AppColors.background,
       ),
       scaffoldBackgroundColor: AppColors.background,
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: AppColors.primary,
         elevation: 0,
         centerTitle: true,
@@ -25,7 +24,7 @@ class AppTheme {
         ),
         iconTheme: IconThemeData(color: Colors.white),
       ),
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         displayLarge: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
@@ -45,11 +44,11 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 2,
-        margin: EdgeInsets.all(8),
+        margin: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: Colors.white,
       ),
-      iconTheme: IconThemeData(color: AppColors.textPrimary),
+      iconTheme: const IconThemeData(color: AppColors.textPrimary),
       dividerColor: Colors.grey.shade200,
     );
   }
@@ -62,29 +61,28 @@ class AppTheme {
         primary: AppColors.darkPrimary,
         secondary: AppColors.darkSecondary,
         surface: Colors.grey.shade900,
-        background: AppColors.darkBackground,
       ),
       scaffoldBackgroundColor: AppColors.darkBackground,
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.grey.shade900,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.bold,
           fontFamily: 'Tajawal',
           color: AppColors.darkTextPrimary,
         ),
-        iconTheme: IconThemeData(color: AppColors.darkTextPrimary),
+        iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
       ),
       textTheme: TextTheme(
-        displayLarge: TextStyle(
+        displayLarge: const TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: AppColors.darkTextPrimary,
           fontFamily: 'Tajawal',
         ),
-        bodyLarge: TextStyle(
+        bodyLarge: const TextStyle(
           fontSize: 16,
           color: AppColors.darkTextPrimary,
           fontFamily: 'Tajawal',
@@ -97,11 +95,11 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 4,
-        margin: EdgeInsets.all(8),
+        margin: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: Colors.grey.shade900,
       ),
-      iconTheme: IconThemeData(color: AppColors.darkTextPrimary),
+      iconTheme: const IconThemeData(color: AppColors.darkTextPrimary),
       dividerColor: Colors.grey.shade800,
     );
   }
@@ -114,11 +112,10 @@ class AppTheme {
         primary: AppColors.darkPrimary,
         secondary: AppColors.darkSecondary,
         surface: Colors.grey.shade900,
-        background: AppColors.darkBackground,
       ),
       cardTheme: CardThemeData(
         elevation: 4,
-        margin: EdgeInsets.all(8),
+        margin: const EdgeInsets.all(8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         color: Colors.grey.shade900,
       ),

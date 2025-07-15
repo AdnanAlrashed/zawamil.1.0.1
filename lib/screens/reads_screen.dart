@@ -24,11 +24,13 @@ class ReadersScreen extends StatelessWidget {
     // يمكن إضافة المزيد من الفنانين هنا
   ];
 
+  // const ReadersScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('القراء'),
+        title: const Text('القراء'),
         actions: [
           IconButton(
             icon: Icon(
@@ -54,7 +56,7 @@ class ReadersScreen extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              margin: EdgeInsets.symmetric(horizontal: 8),
+              margin: const EdgeInsets.symmetric(horizontal: 8),
               child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () {
@@ -69,7 +71,7 @@ class ReadersScreen extends StatelessWidget {
                   );
                 },
                 child: ListTile(
-                  contentPadding: EdgeInsets.symmetric(
+                  contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 8,
                   ),
@@ -83,15 +85,15 @@ class ReadersScreen extends StatelessWidget {
                   title: Text(
                     recitations[index].name,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: AppColors.getTextColor(context),
-                      fontWeight: FontWeight.bold,
-                    ),
+                          color: AppColors.getTextColor(context),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                   subtitle: Text(
                     'عدد السور: ${recitations[index].recitations.length}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).textTheme.bodyMedium?.color,
-                    ),
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                        ),
                   ),
                 ),
               ),
@@ -106,8 +108,8 @@ class ReadersScreen extends StatelessWidget {
             delegate: ReaderSearchDelegate(recitations),
           );
         },
-        child: Icon(Icons.search),
         backgroundColor: Theme.of(context).primaryColor,
+        child: Icon(Icons.search),
       ),
     );
   }
@@ -123,7 +125,7 @@ class ReaderSearchDelegate extends SearchDelegate {
   List<Widget> buildActions(BuildContext context) {
     return [
       IconButton(
-        icon: Icon(Icons.clear),
+        icon: const Icon(Icons.clear),
         onPressed: () {
           query = '';
         },
@@ -134,7 +136,7 @@ class ReaderSearchDelegate extends SearchDelegate {
   @override
   Widget buildLeading(BuildContext context) {
     return IconButton(
-      icon: Icon(Icons.arrow_back),
+      icon: const Icon(Icons.arrow_back),
       onPressed: () {
         close(context, null);
       },

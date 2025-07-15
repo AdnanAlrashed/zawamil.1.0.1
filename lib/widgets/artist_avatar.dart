@@ -6,7 +6,8 @@ class ArtistAvatar extends StatelessWidget {
   final double radius;
   final Widget? errorWidget;
 
-  const ArtistAvatar({this.imageUrl, this.radius = 24.0, this.errorWidget});
+  const ArtistAvatar(
+      {super.key, this.imageUrl, this.radius = 24.0, this.errorWidget});
 
   @override
   Widget build(BuildContext context) {
@@ -25,11 +26,11 @@ class ArtistAvatar extends StatelessWidget {
                     Icon(Icons.person, size: radius, color: AppColors.primary),
               )
             : errorWidget ??
-                  Icon(
-                    Icons.music_note,
-                    size: radius,
-                    color: AppColors.primary,
-                  ),
+                Icon(
+                  Icons.music_note,
+                  size: radius,
+                  color: AppColors.primary,
+                ),
       ),
     );
   }

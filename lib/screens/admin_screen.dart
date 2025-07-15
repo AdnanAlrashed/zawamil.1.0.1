@@ -5,6 +5,11 @@ import '../services/notification_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
+import '../services/firestore_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/audio_file_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({Key? key}) : super(key: key);
@@ -18,13 +23,14 @@ class _AdminScreenState extends State<AdminScreen> {
   final _artistImageController = TextEditingController();
   final _songTitleController = TextEditingController();
   final _songAudioController = TextEditingController();
-  int? _selectedArtistId;
-  int? _editingArtistId;
-  int? _editingSongId;
+  String? _selectedArtistId;
+  String? _editingArtistId;
+  String? _editingSongId;
   bool _isAuthenticated = false;
 
   List<Map<String, dynamic>> artists = [];
   List<Map<String, dynamic>> songs = [];
+  List<String> artistIds = [];
 
   @override
   void initState() {
@@ -43,15 +49,15 @@ class _AdminScreenState extends State<AdminScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: Text('الوصول للإدارة'),
+        title: const Text('الوصول للإدارة'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('أدخل كلمة المرور للوصول لشاشة الإدارة:'),
-            SizedBox(height: 16),
+            const Text('أدخل كلمة المرور للوصول لشاشة الإدارة:'),
+            const SizedBox(height: 16),
             TextField(
               obscureText: true,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'كلمة المرور',
                 border: OutlineInputBorder(),
               ),
@@ -66,7 +72,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 } else {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('كلمة مرور خاطئة')),
+                      const SnackBar(content: Text('كلمة مرور خاطئة')),
                     );
                   }
                 }
@@ -80,7 +86,7 @@ class _AdminScreenState extends State<AdminScreen> {
               Navigator.pop(context);
               Navigator.pop(context); // العودة للشاشة السابقة
             },
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
         ],
       ),
@@ -88,82 +94,221 @@ class _AdminScreenState extends State<AdminScreen> {
   }
 
   Future<void> _loadArtists() async {
-    final data = await DatabaseHelper.instance.getAllArtists();
-    setState(() {
-      artists = data;
-    });
+    try {
+      FirestoreService.getArtistsStream().listen((snapshot) {
+        if (mounted) {
+          setState(() {
+            artists = snapshot.docs.map((doc) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              return data;
+            }).toList();
+            // ترتيب الفنانين حسب تاريخ الإنشاء (الأحدث أولاً)
+            artists.sort((a, b) {
+              final aCreated = a['created_at'] as Timestamp?;
+              final bCreated = b['created_at'] as Timestamp?;
+              if (aCreated == null && bCreated == null) return 0;
+              if (aCreated == null) return 1;
+              if (bCreated == null) return -1;
+              return bCreated.compareTo(aCreated);
+            });
+            artistIds =
+                artists.map((artist) => artist['id'].toString()).toList();
+            // تعيين أول فنان تلقائياً إذا لم يكن محدداً
+            if (_selectedArtistId == null && artists.isNotEmpty) {
+              _selectedArtistId = artists.first['id'].toString();
+            } else if (_selectedArtistId != null && artists.isNotEmpty) {
+              // التحقق من أن الفنان المحدد لا يزال موجوداً
+              final artistExists = artists.any(
+                  (artist) => artist['id'].toString() == _selectedArtistId);
+              if (!artistExists) {
+                _selectedArtistId = artists.first['id'].toString();
+              }
+            }
+          });
+        }
+      }, onError: (error) {
+        print('Error loading artists: $error');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ في تحميل الفنانين: $error')),
+          );
+        }
+      });
+    } catch (e) {
+      print('Error in _loadArtists: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تحميل الفنانين: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _loadSongs() async {
-    final data = await DatabaseHelper.instance.getAllSongs();
-    setState(() {
-      songs = data;
-    });
+    try {
+      // لا نعيد تعيين _selectedArtistId إذا كان محدداً بالفعل
+      if (_selectedArtistId == null && artistIds.isNotEmpty) {
+        _selectedArtistId = artistIds.first;
+      }
+      if (_selectedArtistId != null) {
+        FirestoreService.getSongsByArtistStream(_selectedArtistId!).listen(
+            (snapshot) {
+          if (mounted) {
+            setState(() {
+              songs = snapshot.docs.map((doc) {
+                final data = doc.data();
+                data['id'] = doc.id;
+                return data;
+              }).toList();
+              // ترتيب الزوامل حسب تاريخ الإنشاء (الأحدث أولاً)
+              songs.sort((a, b) {
+                final aCreated = a['created_at'] as Timestamp?;
+                final bCreated = b['created_at'] as Timestamp?;
+                if (aCreated == null && bCreated == null) return 0;
+                if (aCreated == null) return 1;
+                if (bCreated == null) return -1;
+                return bCreated.compareTo(aCreated);
+              });
+            });
+          }
+        }, onError: (error) {
+          print('Error loading songs: $error');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('خطأ في تحميل الزوامل: $error')),
+            );
+          }
+        });
+      }
+    } catch (e) {
+      print('Error in _loadSongs: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تحميل الزوامل: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _addArtist() async {
-    if (_artistNameController.text.isEmpty) return;
-    await DatabaseHelper.instance.createArtist({
-      'name': _artistNameController.text,
-      'image_url': _artistImageController.text,
-    });
-
-    // إرسال إشعار للمستخدمين
-    await NotificationService.showNewArtistNotification(
-        _artistNameController.text);
-
-    _clearArtistForm();
-    _loadArtists();
-
-    // رسالة تأكيد للمدير
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم إضافة الفنان وإرسال الإشعار للمستخدمين')),
+    try {
+      if (_artistNameController.text.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('يرجى إدخال اسم الفنان')),
+          );
+        }
+        return;
+      }
+      await FirestoreService.addArtist(
+        name: _artistNameController.text,
+        imageUrl: _artistImageController.text,
       );
+      await NotificationService.showNewArtistNotification(
+          _artistNameController.text);
+      // إرسال إشعار جماعي تلقائيًا بعد إضافة الفنان
+      await NotificationService.sendNotificationViaServer(
+        title: '🎤 فنان جديد في التطبيق!',
+        body:
+            'تمت إضافة الفنان: ${_artistNameController.text}. اكتشف زوامله الآن!',
+      );
+      _clearArtistForm();
+      // لا داعي لاستدعاء _loadArtists لأن stream سيحدث تلقائياً
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('تم إضافة الفنان وإرسال الإشعار للمستخدمين')),
+        );
+      }
+    } catch (e) {
+      print('Error adding artist: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في إضافة الفنان: $e')),
+        );
+      }
     }
   }
 
   Future<void> _updateArtist() async {
     if (_artistNameController.text.isEmpty || _editingArtistId == null) return;
-    await DatabaseHelper.instance.updateArtist({
-      'id': _editingArtistId,
-      'name': _artistNameController.text,
-      'image_url': _artistImageController.text,
-    });
+    await FirestoreService.updateArtist(
+      artistId: _editingArtistId!,
+      name: _artistNameController.text,
+      imageUrl: _artistImageController.text,
+    );
     _clearArtistForm();
-    _loadArtists();
+    // لا داعي لاستدعاء _loadArtists لأن stream سيحدث تلقائياً
   }
 
-  Future<void> _deleteArtist(int artistId) async {
+  Future<void> _deleteArtist(String artistId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('تأكيد الحذف'),
-        content:
-            Text('هل أنت متأكد من حذف هذا الفنان؟ سيتم حذف جميع زوامله أيضاً.'),
+        title: const Text('تأكيد الحذف'),
+        content: const Text(
+            'هل أنت متأكد من حذف هذا الفنان؟ سيتم حذف جميع زوامله أيضاً.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('حذف', style: TextStyle(color: Colors.red)),
+            child: const Text('حذف', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      await DatabaseHelper.instance.deleteArtist(artistId);
-      _loadArtists();
-      _loadSongs();
+      try {
+        // البحث عن الفنان لحذف صورته
+        final artist =
+            artists.firstWhere((a) => a['id'].toString() == artistId);
+        final imageUrl = artist['image_url'] as String?;
+
+        // حذف صورة الفنان إذا كانت موجودة
+        if (imageUrl != null && imageUrl.isNotEmpty) {
+          final imageFile = File(imageUrl);
+          if (await imageFile.exists()) {
+            await imageFile.delete();
+          }
+        }
+
+        // حذف جميع الملفات الصوتية للفنان
+        final artistSongs =
+            songs.where((s) => s['artist_id'].toString() == artistId).toList();
+        for (final song in artistSongs) {
+          final audioUrl = song['audio_url'] as String?;
+          if (audioUrl != null && audioUrl.isNotEmpty) {
+            await AudioFileService.deleteAudioFile(audioUrl);
+          }
+        }
+
+        // حذف الفنان من Firestore (سيحذف الزوامل تلقائياً)
+        await FirestoreService.deleteArtist(artistId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم حذف الفنان وجميع زوامله بنجاح')),
+          );
+        }
+      } catch (e) {
+        print('Error deleting artist: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ في حذف الفنان: $e')),
+          );
+        }
+      }
     }
   }
 
   void _editArtist(Map<String, dynamic> artist) {
     setState(() {
-      _editingArtistId = artist['id'];
+      _editingArtistId = artist['id']?.toString();
       _artistNameController.text = artist['name'];
       _artistImageController.text = artist['image_url'] ?? '';
     });
@@ -174,84 +319,141 @@ class _AdminScreenState extends State<AdminScreen> {
       _editingArtistId = null;
       _artistNameController.clear();
       _artistImageController.clear();
+      // لا نعيد تعيين _selectedArtistId لتجنب إعادة تحميل القائمة
     });
   }
 
   Future<void> _addSong() async {
-    if (_songTitleController.text.isEmpty || _selectedArtistId == null) return;
+    try {
+      if (_songTitleController.text.isEmpty || _selectedArtistId == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('يرجى ملء جميع الحقول المطلوبة')),
+          );
+        }
+        return;
+      }
 
-    // الحصول على اسم الفنان
-    final artist = artists.firstWhere(
-      (a) => a['id'] == _selectedArtistId,
-      orElse: () => {'name': 'غير معروف'},
-    );
+      // التحقق من وجود الملف الصوتي
+      if (_songAudioController.text.isNotEmpty) {
+        final fileExists =
+            await AudioFileService.audioFileExists(_songAudioController.text);
+        if (!fileExists) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('الملف الصوتي غير موجود، يرجى اختيار ملف آخر')),
+            );
+          }
+          return;
+        }
+      }
 
-    await DatabaseHelper.instance.createSong({
-      'title': _songTitleController.text,
-      'audio_url': _songAudioController.text,
-      'artist_id': _selectedArtistId,
-    });
-
-    // إرسال إشعار للمستخدمين
-    await NotificationService.showNewSongNotification(
-      _songTitleController.text,
-      artist['name'],
-    );
-
-    _clearSongForm();
-    _loadSongs();
-
-    // رسالة تأكيد للمدير
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('تم إضافة الزامل وإرسال الإشعار للمستخدمين')),
+      final artist = artists.firstWhere(
+        (a) => a['id'].toString() == _selectedArtistId,
+        orElse: () => {'name': 'غير معروف'},
       );
+      await FirestoreService.addSong(
+        title: _songTitleController.text,
+        audioUrl: _songAudioController.text,
+        artistId: _selectedArtistId!,
+      );
+      await NotificationService.showNewSongNotification(
+        _songTitleController.text,
+        artist['name'],
+      );
+      // إرسال إشعار جماعي تلقائيًا بعد إضافة الزامل
+      await NotificationService.sendNotificationViaServer(
+        title: '🎵 زامل جديد متاح الآن!',
+        body:
+            'استمع الآن إلى "${_songTitleController.text}" بصوت الفنان: ${artist['name']}',
+      );
+      _clearSongForm();
+      // لا داعي لاستدعاء _loadSongs لأن stream سيحدث تلقائياً
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('تم إضافة الزامل وإرسال الإشعار للمستخدمين')),
+        );
+      }
+    } catch (e) {
+      print('Error adding song: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في إضافة الزامل: $e')),
+        );
+      }
     }
   }
 
   Future<void> _updateSong() async {
     if (_songTitleController.text.isEmpty ||
         _editingSongId == null ||
-        _selectedArtistId == null) return;
-    await DatabaseHelper.instance.updateSong({
-      'id': _editingSongId,
-      'title': _songTitleController.text,
-      'audio_url': _songAudioController.text,
-      'artist_id': _selectedArtistId,
-    });
+        _selectedArtistId == null) {
+      return;
+    }
+    await FirestoreService.updateSong(
+      songId: _editingSongId.toString(),
+      title: _songTitleController.text,
+      audioUrl: _songAudioController.text,
+      artistId: _selectedArtistId!,
+    );
     _clearSongForm();
-    _loadSongs();
   }
 
-  Future<void> _deleteSong(int songId) async {
+  Future<void> _deleteSong(String songId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف هذا الزامل؟'),
+        title: const Text('تأكيد الحذف'),
+        content: const Text('هل أنت متأكد من حذف هذا الزامل؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('حذف', style: TextStyle(color: Colors.red)),
+            child: const Text('حذف', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      await DatabaseHelper.instance.deleteSong(songId);
-      _loadSongs();
+      try {
+        // البحث عن الزامل لحذف الملف الصوتي
+        final song = songs.firstWhere((s) => s['id'].toString() == songId);
+        final audioUrl = song['audio_url'] as String?;
+
+        // حذف الملف الصوتي إذا كان موجوداً
+        if (audioUrl != null && audioUrl.isNotEmpty) {
+          await AudioFileService.deleteAudioFile(audioUrl);
+        }
+
+        // حذف الزامل من Firestore
+        await FirestoreService.deleteSong(songId);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم حذف الزامل بنجاح')),
+          );
+        }
+      } catch (e) {
+        print('Error deleting song: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ في حذف الزامل: $e')),
+          );
+        }
+      }
     }
   }
 
   void _editSong(Map<String, dynamic> song) {
     setState(() {
-      _editingSongId = song['id'];
-      _selectedArtistId = song['artist_id'];
+      _editingSongId = song['id']?.toString();
+      _selectedArtistId = song['artist_id']?.toString();
       _songTitleController.text = song['title'];
       _songAudioController.text = song['audio_url'];
     });
@@ -262,15 +464,51 @@ class _AdminScreenState extends State<AdminScreen> {
       _editingSongId = null;
       _songTitleController.clear();
       _songAudioController.clear();
+      // لا نعيد تعيين _selectedArtistId لتجنب إعادة تحميل القائمة
     });
   }
 
   Future<void> _pickArtistImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        _artistImageController.text = picked.path;
-      });
+    try {
+      final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+      if (picked != null) {
+        // نسخ الصورة إلى مكان دائم
+        final appDir = await getApplicationDocumentsDirectory();
+        final imagesDir = Directory('${appDir.path}/artist_images');
+
+        // إنشاء مجلد الصور إذا لم يكن موجوداً
+        if (!await imagesDir.exists()) {
+          await imagesDir.create(recursive: true);
+        }
+
+        // إنشاء اسم فريد للصورة
+        final fileName = path.basename(picked.path);
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final uniqueFileName =
+            '${timestamp}_${fileName.replaceAll(RegExp(r'[^\w\s-]'), '_')}';
+        final destinationPath = '${imagesDir.path}/$uniqueFileName';
+
+        // نسخ الصورة
+        final sourceFile = File(picked.path);
+        await sourceFile.copy(destinationPath);
+
+        setState(() {
+          _artistImageController.text = destinationPath;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم اختيار صورة الفنان بنجاح')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في اختيار الصورة: $e')),
+        );
+      }
     }
   }
 
@@ -282,14 +520,67 @@ class _AdminScreenState extends State<AdminScreen> {
       );
 
       if (result != null && result.files.single.path != null) {
+        final sourcePath = result.files.single.path!;
+
+        // نسخ الملف إلى مكان دائم
+        final permanentPath =
+            await AudioFileService.copyAudioFileToPermanentLocation(sourcePath);
+
         setState(() {
-          _songAudioController.text = result.files.single.path!;
+          _songAudioController.text = permanentPath;
         });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم اختيار الملف الصوتي بنجاح')),
+          );
+        }
       }
     } catch (e) {
+      print('Error picking audio file: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('خطأ في اختيار الملف: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _cleanOldData() async {
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تنظيف البيانات القديمة'),
+          content: const Text(
+              'سيتم حذف جميع الزوامل التي تحتوي على مسارات ملفات قديمة. هل أنت متأكد؟'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child:
+                  const Text('تنظيف', style: TextStyle(color: Colors.orange)),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed == true) {
+        await FirestoreService.updateOldAudioPaths();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تم تنظيف البيانات القديمة بنجاح')),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error cleaning old data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تنظيف البيانات: $e')),
         );
       }
     }
@@ -300,13 +591,13 @@ class _AdminScreenState extends State<AdminScreen> {
     if (!_isAuthenticated) {
       return Scaffold(
         appBar: AppBar(
-          title: Text('الوصول للإدارة'),
+          title: const Text('الوصول للإدارة'),
           leading: IconButton(
-            icon: Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(),
         ),
       );
@@ -314,36 +605,36 @@ class _AdminScreenState extends State<AdminScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('لوحة الإدارة'),
+        title: const Text('لوحة الإدارة'),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               _editingArtistId != null ? 'تعديل الفنان' : 'إضافة فنان جديد',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: _artistNameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'اسم الفنان',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _artistImageController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'مسار الصورة',
                       border: OutlineInputBorder(),
                     ),
@@ -351,22 +642,31 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.image),
+                  icon: const Icon(Icons.image),
                   onPressed: _pickArtistImage,
                 ),
                 if (_artistImageController.text.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(left: 8.0),
-                    child: Image.file(
-                      File(_artistImageController.text),
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
+                    child: Builder(
+                      builder: (context) {
+                        final imageFile = File(_artistImageController.text);
+                        if (imageFile.existsSync()) {
+                          return Image.file(
+                            imageFile,
+                            width: 40,
+                            height: 40,
+                            fit: BoxFit.cover,
+                          );
+                        } else {
+                          return const Icon(Icons.image, size: 40);
+                        }
+                      },
                     ),
                   ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 ElevatedButton(
@@ -377,51 +677,51 @@ class _AdminScreenState extends State<AdminScreen> {
                       : 'إضافة الفنان'),
                 ),
                 if (_editingArtistId != null) ...[
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _clearArtistForm,
                     style:
                         ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-                    child: Text('إلغاء التعديل'),
+                    child: const Text('إلغاء التعديل'),
                   ),
                 ],
               ],
             ),
-            Divider(height: 32),
+            const Divider(height: 32),
             Text(
               _editingSongId != null ? 'تعديل الزامل' : 'إضافة زامل جديد',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-            SizedBox(height: 8),
-            DropdownButtonFormField<int>(
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
               value: _selectedArtistId,
               items: artists.map((artist) {
-                return DropdownMenuItem<int>(
-                  value: artist['id'],
+                return DropdownMenuItem<String>(
+                  value: artist['id'].toString(),
                   child: Text(artist['name']),
                 );
               }).toList(),
               onChanged: (val) => setState(() => _selectedArtistId = val),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'اختر الفنان',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             TextField(
               controller: _songTitleController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'عنوان الزامل',
                 border: OutlineInputBorder(),
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _songAudioController,
-                    decoration: InputDecoration(
+                    decoration: const InputDecoration(
                       labelText: 'مسار الملف الصوتي',
                       hintText: 'اختر ملف صوتي من الهاتف',
                       border: OutlineInputBorder(),
@@ -430,12 +730,12 @@ class _AdminScreenState extends State<AdminScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.audiotrack),
+                  icon: const Icon(Icons.audiotrack),
                   onPressed: _pickSongAudio,
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Row(
               children: [
                 ElevatedButton(
@@ -444,78 +744,122 @@ class _AdminScreenState extends State<AdminScreen> {
                       _editingSongId != null ? 'تحديث الزامل' : 'إضافة الزامل'),
                 ),
                 if (_editingSongId != null) ...[
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: _clearSongForm,
                     style:
                         ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-                    child: Text('إلغاء التعديل'),
+                    child: const Text('إلغاء التعديل'),
                   ),
                 ],
               ],
             ),
-            Divider(height: 32),
-            Text('الفنانون الحاليون:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            SizedBox(height: 8),
+            const Divider(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('الفنانون الحاليون:',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                ElevatedButton(
+                  onPressed: _cleanOldData,
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  child: const Text('تنظيف البيانات القديمة'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             ...artists.map((artist) => Card(
                   child: ListTile(
                     leading: artist['image_url'] != null &&
                             artist['image_url'].toString().isNotEmpty
-                        ? Image.file(
-                            File(artist['image_url']),
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
+                        ? Builder(
+                            builder: (context) {
+                              final imageFile = File(artist['image_url']);
+                              if (imageFile.existsSync()) {
+                                return Image.file(
+                                  imageFile,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                );
+                              } else {
+                                return const Icon(Icons.person, size: 40);
+                              }
+                            },
                           )
-                        : Icon(Icons.person),
+                        : const Icon(Icons.person),
                     title: Text(artist['name'] ?? ''),
                     subtitle: Text(artist['image_url'] ?? ''),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: Icon(Icons.edit, color: Colors.blue),
+                          icon: const Icon(Icons.edit, color: Colors.blue),
                           onPressed: () => _editArtist(artist),
                         ),
                         IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteArtist(artist['id']),
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () =>
+                              _deleteArtist(artist['id'].toString()),
                         ),
                       ],
                     ),
                   ),
                 )),
-            Divider(height: 32),
-            Text('الزوامل المضافة:',
+            const Divider(height: 32),
+            const Text('الزوامل المضافة:',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            SizedBox(height: 8),
-            ...songs.map((song) {
-              final artist = artists.firstWhere(
-                (a) => a['id'] == song['artist_id'],
-                orElse: () => {'name': 'غير معروف'},
-              );
-              return Card(
-                child: ListTile(
-                  leading: Icon(Icons.music_note),
-                  title: Text(song['title'] ?? ''),
-                  subtitle: Text('الفنان: ${artist['name']}'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.edit, color: Colors.blue),
-                        onPressed: () => _editSong(song),
+            const SizedBox(height: 8),
+            StreamBuilder(
+              stream: FirestoreService.getSongsByArtistStream(
+                  _selectedArtistId ?? ''),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData ||
+                    (snapshot.data as dynamic).docs.isEmpty) {
+                  return const Text('لا يوجد زوامل مضافة حالياً');
+                }
+                final docs = (snapshot.data as dynamic).docs;
+                final songs = docs.map((doc) {
+                  final data = doc.data();
+                  data['id'] = doc.id;
+                  return data;
+                }).toList();
+                return Column(
+                  children: songs.map<Widget>((song) {
+                    final artist = artists.firstWhere(
+                      (a) => a['id'] == song['artist_id'],
+                      orElse: () => {'name': 'غير معروف'},
+                    );
+                    return Card(
+                      child: ListTile(
+                        leading: const Icon(Icons.music_note),
+                        title: Text(song['title'] ?? ''),
+                        subtitle: Text('الفنان: ${artist['name']}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () => _editSong(song),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () =>
+                                  _deleteSong(song['id'].toString()),
+                            ),
+                          ],
+                        ),
                       ),
-                      IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () => _deleteSong(song['id']),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                    );
+                  }).toList(),
+                );
+              },
+            ),
           ],
         ),
       ),

@@ -9,6 +9,7 @@ class ReaderRecitationsScreen extends StatelessWidget {
   final List<Recitation> recitations;
 
   const ReaderRecitationsScreen({
+    super.key,
     required this.reader,
     required this.recitations,
   });
@@ -20,7 +21,7 @@ class ReaderRecitationsScreen extends StatelessWidget {
         title: Text(reader.name),
         actions: [
           IconButton(
-            icon: Icon(Icons.share),
+            icon: const Icon(Icons.share),
             onPressed: () => _shareArtist(context),
           ),
         ],
@@ -49,10 +50,9 @@ class ReaderRecitationsScreen extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
-                margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(10),
-
                   onTap: () {
                     Navigator.push(
                       context,
@@ -81,14 +81,14 @@ class ReaderRecitationsScreen extends StatelessWidget {
                     );
                   },
                   child: ListTile(
-                    contentPadding: EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
                     leading: Hero(
                       tag: 'recitation_${recitations[index].id}_${reader.id}',
                       child: Container(
-                        padding: EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Theme.of(
                             context,
@@ -105,9 +105,9 @@ class ReaderRecitationsScreen extends StatelessWidget {
                     title: Text(
                       recitations[index].title,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: AppColors.getTextColor(context),
-                        fontWeight: FontWeight.w500,
-                      ),
+                            color: AppColors.getTextColor(context),
+                            fontWeight: FontWeight.w500,
+                          ),
                     ),
                     trailing: Icon(
                       Icons.play_arrow,
@@ -121,8 +121,7 @@ class ReaderRecitationsScreen extends StatelessWidget {
   }
 
   void _shareArtist(BuildContext context) {
-    final text =
-        'استمع إلى ${reader.name} على تطبيق Zwamil\n'
+    final text = 'استمع إلى ${reader.name} على تطبيق Zwamil\n'
         'عدد الزوامل: ${reader.recitations.length}';
     Share.share(text);
   }

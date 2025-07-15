@@ -1,7 +1,5 @@
-import 'package:flutter/foundation.dart';
-
 class Artist {
-  final int? id;
+  final String? id;
   final String name;
   final String imageUrl;
   final int songCount;
@@ -24,7 +22,7 @@ class Artist {
 
   factory Artist.fromMap(Map<String, dynamic> map) {
     return Artist(
-      id: map['id'],
+      id: map['id']?.toString(),
       name: map['name'],
       imageUrl: map['image_url'],
       songCount: map['song_count'] ?? 0,

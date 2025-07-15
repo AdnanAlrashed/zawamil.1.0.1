@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "869494540749",
+    "project_id": "adnan-5076e",
+    "storage_bucket": "adnan-5076e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:869494540749:android:8a3983d662f9f18b1c5c84",
+        "android_client_info": {
+          "package_name": "com.example.zawamil"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmNXp2h4rt8bPmOSViEfDBG034vwW9ZE4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:869494540749:android:28699c3b59a069021c5c84",
+        "android_client_info": {
+          "package_name": "zwamill.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAmNXp2h4rt8bPmOSViEfDBG034vwW9ZE4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/audio_file_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:async';
 import 'dart:io';
@@ -24,7 +25,7 @@ class MusicPlayerScreen extends StatefulWidget {
   final AudioItem audioItem;
   final List<AudioItem>? playlist; // قائمة تشغيل اختيارية
 
-  const MusicPlayerScreen({required this.audioItem, this.playlist});
+  const MusicPlayerScreen({super.key, required this.audioItem, this.playlist});
 
   @override
   _MusicPlayerScreenState createState() => _MusicPlayerScreenState();
@@ -62,6 +63,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return index >= 0 ? index : 0; // العودة إلى 0 إذا لم يتم العثور على العنصر
   }
 
+  Future<String> _ensureAudioFile(String audioUrl) async {
+    final file = File(audioUrl);
+    if (await file.exists()) {
+      return audioUrl;
+    } else if (audioUrl.startsWith('http')) {
+      // إذا كان رابط تحميل
+      final fileName = audioUrl.split('/').last;
+      return await AudioFileService.downloadAudioFile(audioUrl, fileName);
+    } else {
+      // إذا كان مسار محلي غير موجود
+      throw Exception('الملف الصوتي غير موجود: $audioUrl');
+    }
+  }
+
   Future<void> _playItem(int index) async {
     if (index < 0 || index >= _playlist.length) {
       _showErrorSnackbar('عنصر غير صالح');
@@ -76,11 +91,13 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
       });
 
       await _audioPlayer.stop();
-      await _audioPlayer.setSource(DeviceFileSource(_playlist[index].audioUrl));
-      await _audioPlayer.play(DeviceFileSource(_playlist[index].audioUrl));
+
+      final localPath = await _ensureAudioFile(_playlist[index].audioUrl);
+      await _audioPlayer.setSource(DeviceFileSource(localPath));
+      await _audioPlayer.play(DeviceFileSource(localPath));
     } catch (e) {
       debugPrint('Play item error: $e');
-      _showErrorSnackbar('حدث خطأ أثناء تشغيل العنصر');
+      _showErrorSnackbar('حدث خطأ أثناء تشغيل العنصر: ${e.toString()}');
       if (mounted) {
         setState(() => _isBuffering = false);
       }
@@ -99,9 +116,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
   Future<void> _initAudio() async {
     try {
       setState(() => _isBuffering = true);
-      await _audioPlayer.setSource(
-        DeviceFileSource(_playlist[_currentIndex].audioUrl),
-      );
+      final localPath =
+          await _ensureAudioFile(_playlist[_currentIndex].audioUrl);
+      await _audioPlayer.setSource(DeviceFileSource(localPath));
       await _audioPlayer.setVolume(1.0);
     } catch (e) {
       debugPrint('Audio initialization error: $e');
@@ -143,9 +160,9 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
         await _audioPlayer.pause();
       } else {
         if (_position.inMilliseconds == 0 || _position == _duration) {
-          await _audioPlayer.play(
-            DeviceFileSource(_playlist[_currentIndex].audioUrl),
-          );
+          final localPath =
+              await _ensureAudioFile(_playlist[_currentIndex].audioUrl);
+          await _audioPlayer.play(DeviceFileSource(localPath));
         } else {
           await _audioPlayer.resume();
         }
@@ -170,7 +187,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _skipForward() async {
     try {
-      final newPosition = _position + Duration(seconds: 10);
+      final newPosition = _position + const Duration(seconds: 10);
       if (newPosition < _duration) {
         await _audioPlayer.seek(newPosition);
       } else {
@@ -184,7 +201,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
 
   Future<void> _skipBackward() async {
     try {
-      final newPosition = _position - Duration(seconds: 10);
+      final newPosition = _position - const Duration(seconds: 10);
       if (newPosition > Duration.zero) {
         await _audioPlayer.seek(newPosition);
       } else {
@@ -264,7 +281,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('المشغل'),
+        title: const Text('المشغل'),
         actions: [
           IconButton(
             icon: Icon(_isLooping ? Icons.repeat_one : Icons.repeat),
@@ -296,7 +313,12 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   radius: 120,
                   backgroundImage: currentItem.imageUrl != null &&
                           currentItem.imageUrl!.isNotEmpty
-                      ? FileImage(File(currentItem.imageUrl!)) as ImageProvider
+                      ? (() {
+                          final imageFile = File(currentItem.imageUrl!);
+                          return imageFile.existsSync()
+                              ? FileImage(imageFile) as ImageProvider
+                              : null;
+                        })()
                       : null,
                   backgroundColor: Theme.of(
                     context,
@@ -311,7 +333,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                       : null,
                 ),
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               Text(
                 currentItem.title,
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -323,7 +345,7 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                 currentItem.artistName,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
-              SizedBox(height: 32),
+              const SizedBox(height: 32),
               Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -345,10 +367,10 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                               activeTrackColor: Colors.blueAccent,
                               inactiveTrackColor: Colors.grey[300],
                               thumbColor: Colors.blue,
-                              thumbShape: RoundSliderThumbShape(
+                              thumbShape: const RoundSliderThumbShape(
                                 enabledThumbRadius: 8,
                               ),
-                              overlayShape: RoundSliderOverlayShape(
+                              overlayShape: const RoundSliderOverlayShape(
                                 overlayRadius: 14,
                               ),
                             ),
@@ -406,15 +428,15 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                   ),
                 ],
               ),
-              SizedBox(height: 24),
+              const SizedBox(height: 24),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.replay_10, size: 32),
+                    icon: const Icon(Icons.replay_10, size: 32),
                     onPressed: _skipBackward,
                   ),
-                  SizedBox(width: 24),
+                  const SizedBox(width: 24),
                   IconButton(
                     icon: Icon(
                       _isPlaying
@@ -425,14 +447,14 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ),
                     onPressed: _togglePlay,
                   ),
-                  SizedBox(width: 24),
+                  const SizedBox(width: 24),
                   IconButton(
-                    icon: Icon(Icons.forward_10, size: 32),
+                    icon: const Icon(Icons.forward_10, size: 32),
                     onPressed: _skipForward,
                   ),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -443,20 +465,20 @@ class _MusicPlayerScreenState extends State<MusicPlayerScreen> {
                     ),
                     onPressed: _toggleLoop,
                   ),
-                  SizedBox(width: 24),
+                  const SizedBox(width: 24),
                   IconButton(
-                    icon: Icon(Icons.skip_previous, size: 32),
+                    icon: const Icon(Icons.skip_previous, size: 32),
                     onPressed: _playPrevious,
                   ),
-                  SizedBox(width: 24),
+                  const SizedBox(width: 24),
                   IconButton(
-                    icon: Icon(Icons.skip_next, size: 32),
+                    icon: const Icon(Icons.skip_next, size: 32),
                     onPressed: _playNext,
                   ),
                 ],
               ),
               if (_isBuffering)
-                Padding(
+                const Padding(
                   padding: EdgeInsets.only(top: 16),
                   child: CircularProgressIndicator(
                     strokeWidth: 2,

@@ -8,48 +8,21 @@ import '../theme/app_colors.dart';
 import '../widgets/artist_avatar.dart';
 import '../database/database_helper.dart';
 import 'dart:io';
+import '../services/firestore_service.dart';
 
 class ArtistsScreen extends StatefulWidget {
+  const ArtistsScreen({super.key});
+
   @override
   State<ArtistsScreen> createState() => _ArtistsScreenState();
 }
 
 class _ArtistsScreenState extends State<ArtistsScreen> {
-  List<Artist> artists = [];
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadArtists();
-  }
-
-  Future<void> _loadArtists() async {
-    final artistsData = await DatabaseHelper.instance.getAllArtists();
-    final List<Artist> loadedArtists = [];
-
-    for (var artistData in artistsData) {
-      final songsData = await DatabaseHelper.instance
-          .getSongsByArtist(artistData['id'] as int);
-      loadedArtists.add(Artist(
-        id: artistData['id'],
-        name: artistData['name'],
-        imageUrl: artistData['image_url'] ?? '',
-        songCount: songsData.length,
-      ));
-    }
-
-    setState(() {
-      artists = loadedArtists;
-      isLoading = false;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('الفنانين'),
+        title: const Text('الفنانين'),
         actions: [
           IconButton(
             icon: Consumer<ThemeNotifier>(
@@ -63,79 +36,93 @@ class _ArtistsScreenState extends State<ArtistsScreen> {
           ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : artists.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('لا يوجد فنانين حالياً',
-                          style: TextStyle(fontSize: 18, color: Colors.grey)),
-                      SizedBox(height: 8),
-                      Text('قم بإضافة فنانين من شاشة الإدارة',
-                          style: TextStyle(color: Colors.grey)),
-                    ],
+      body: StreamBuilder(
+        stream: FirestoreService.getArtistsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || (snapshot.data as dynamic).docs.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.people_outline, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text('لا يوجد فنانين حالياً',
+                      style: TextStyle(fontSize: 18, color: Colors.grey)),
+                  SizedBox(height: 8),
+                  Text('قم بإضافة فنانين من شاشة الإدارة',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            );
+          }
+          final docs = (snapshot.data as dynamic).docs;
+          final artists = docs.map<Artist>((doc) {
+            final data = doc.data();
+            return Artist(
+              id: doc.id,
+              name: data['name'] ?? '',
+              imageUrl: data['image_url'] ?? '',
+              songCount: 0, // سيتم حسابها لاحقاً إذا لزم الأمر
+            );
+          }).toList();
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ListView.builder(
+              itemCount: artists.length,
+              itemBuilder: (ctx, index) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Card(
+                  color: AppColors.getCardColor(context),
+                  elevation: 2,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: ListView.builder(
-                    itemCount: artists.length,
-                    itemBuilder: (ctx, index) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4.0),
-                      child: Card(
-                        color: AppColors.getCardColor(context),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        margin: EdgeInsets.symmetric(horizontal: 8),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(12),
-                          onTap: () async {
-                            final songsData = await DatabaseHelper.instance
-                                .getSongsByArtist(artists[index].id!);
-                            final songs = songsData
-                                .map((songData) => Song(
-                                      id: songData['id'],
-                                      title: songData['title'],
-                                      audioUrl: songData['audio_url'],
-                                      artistId: songData['artist_id'],
-                                    ))
-                                .toList();
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ArtistSongsScreen(
-                                  artist: artists[index],
-                                  songs: songs,
-                                ),
-                              ),
-                            );
-                          },
-                          child: ListTile(
-                            leading: artists[index].imageUrl.isNotEmpty
-                                ? CircleAvatar(
-                                    backgroundImage: FileImage(
-                                        File(artists[index].imageUrl)),
-                                  )
-                                : CircleAvatar(
-                                    child: Icon(Icons.person),
-                                  ),
-                            title: Text(artists[index].name),
-                            subtitle: Text(
-                                'عدد الزوامل: ${artists[index].songCount}'),
-                            trailing: Icon(Icons.arrow_forward_ios),
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ArtistSongsScreen(
+                            artist: artists[index],
+                            songs: const [],
                           ),
                         ),
-                      ),
+                      );
+                    },
+                    child: FutureBuilder<int>(
+                      future: FirestoreService.getSongsByArtistStream(
+                              artists[index].id!)
+                          .first
+                          .then((snapshot) => snapshot.docs.length),
+                      builder: (context, snapshot) {
+                        final songCount = snapshot.data ?? 0;
+                        return ListTile(
+                          leading: artists[index].imageUrl.isNotEmpty
+                              ? CircleAvatar(
+                                  backgroundImage:
+                                      FileImage(File(artists[index].imageUrl)),
+                                )
+                              : const CircleAvatar(
+                                  child: Icon(Icons.person),
+                                ),
+                          title: Text(artists[index].name),
+                          subtitle: Text('عدد الزوامل: $songCount'),
+                          trailing: const Icon(Icons.arrow_forward_ios),
+                        );
+                      },
                     ),
                   ),
                 ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }

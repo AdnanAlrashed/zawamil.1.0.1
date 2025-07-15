@@ -8,6 +8,8 @@ import 'reads_screen.dart';
 import 'admin_screen.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
   _HomeScreenState createState() => _HomeScreenState();
 }
@@ -76,22 +78,22 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('الوصول للإدارة'),
-        content: Text('هل تريد الوصول لشاشة الإدارة؟'),
+        title: const Text('الوصول للإدارة'),
+        content: const Text('هل تريد الوصول لشاشة الإدارة؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('إلغاء'),
+            child: const Text('إلغاء'),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => AdminScreen()),
+                MaterialPageRoute(builder: (context) => const AdminScreen()),
               );
             },
-            child: Text('تأكيد'),
+            child: const Text('تأكيد'),
           ),
         ],
       ),
@@ -104,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: GestureDetector(
           onTap: _handleTitleTap,
-          child: Text(
+          child: const Text(
             'Zwamil',
             style:
                 TextStyle(fontFamily: 'Tajawal', fontWeight: FontWeight.bold),
@@ -127,8 +129,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: GridView.builder(
-          physics: BouncingScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          physics: const BouncingScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
@@ -162,12 +164,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Navigator.push(
             context,
             PageRouteBuilder(
-              transitionDuration: Duration(milliseconds: 300),
+              transitionDuration: const Duration(milliseconds: 300),
               pageBuilder: (_, __, ___) => category['screen'],
               transitionsBuilder: (_, animation, __, child) {
                 return SlideTransition(
                   position: Tween<Offset>(
-                    begin: Offset(0.0, 0.1),
+                    begin: const Offset(0.0, 0.1),
                     end: Offset.zero,
                   ).animate(
                     CurvedAnimation(
@@ -200,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // محاولة عرض الصورة أولاً، ثم الأيقونة إذا فشل التحميل
               _buildCategoryImage(category, iconColor),
-              SizedBox(height: 12),
+              const SizedBox(height: 12),
               Text(
                 category['title'],
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(

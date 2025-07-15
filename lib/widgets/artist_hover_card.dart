@@ -27,7 +27,7 @@ class ArtistHoverCard extends StatelessWidget {
               artist.name,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               '${artist.songCount} songs',
               style: Theme.of(context).textTheme.bodyMedium,
